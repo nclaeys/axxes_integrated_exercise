@@ -60,3 +60,16 @@ Tasks:
 - `python -m black dags src tests` fixes PEP8 compliance issues
 - `pip-compile requirements.in` if you add new requirements this regenerates a new requirements.txt
 - `pip-compile dev-requirements.in` if you add new requirements this regenerates a new dev-requirements.txt, you should also do this when have updated your requirements.in
+
+Examples for running the ingest job locally:
+```
+export AWS_PROFILE=
+<python in venv> <PATH_TO_INGEST>/ingest.py --date 2023-11-10 --path integrated-exercise-resources --env prd
+```
+here the path parameter is the s3 bucket.
+
+Running the normalized step locally:
+```
+export AWS_PROFILE=
+<python in venv> <PATH_TO_INGEST>/normalize.py --date 2023-11-10 --path integrated-exercise-resources --env prd
+```

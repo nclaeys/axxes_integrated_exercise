@@ -27,7 +27,7 @@ def createDf(spark, data):
         'station_name',
         'timestamp',
         'value',
-        'city'
+        'city_name'
     ]
     return spark.createDataFrame(data, columns)
 
@@ -121,14 +121,14 @@ def test_aggregate_city_by_hour_one_value(spark):
     collected_df = aggregate.collect()
     assert collected_df[0]["day"] == '2023-11-01'
     assert collected_df[0]["average"] == 1
-    assert collected_df[0]["city"] == antwerp
+    assert collected_df[0]["city_name"] == antwerp
 
 def test_aggregate_city_by_hour_two_values_different_stations(spark):
     parameter_name = 'pm10'
     station_id = '10000'
     antwerp = 'antwerp'
     # epoch millis
-    timestamp = datetime.datetime(2023, 11, 1, 10, 0, 0,0).timestamp() * 1000
+    timestamp = datetime.datetime(2023, 11, 1, 10, 0, 0, 0, tzinfo=datetime.timezone.utc).timestamp() * 1000
 
     df = createDf(spark, [to_measurement(parameter_name, station_id, timestamp, 1, city=antwerp),
                           to_measurement(parameter_name, '2000', timestamp, 3, city=antwerp)])
@@ -139,7 +139,7 @@ def test_aggregate_city_by_hour_two_values_different_stations(spark):
     collected_df = aggregate.collect()
     assert collected_df[0]["day"] == '2023-11-01'
     assert collected_df[0]["average"] == 2
-    assert collected_df[0]["city"] == antwerp
+    assert collected_df[0]["city_name"] == antwerp
 
 def test_aggregate_city_by_hour_two_values_different_hours(spark):
     parameter_name = 'pm10'
@@ -158,7 +158,7 @@ def test_aggregate_city_by_hour_two_values_different_hours(spark):
     collected_df = aggregate.collect()
     assert collected_df[0]["day"] == '2023-11-01'
     assert collected_df[0]["average"] == 1
-    assert collected_df[0]["city"] == antwerp
+    assert collected_df[0]["city_name"] == antwerp
     assert collected_df[1]["day"] == '2023-11-01'
     assert collected_df[1]["average"] == 3
-    assert collected_df[1]["city"] == antwerp
+    assert collected_df[1]["city_name"] == antwerp

@@ -57,14 +57,15 @@ Think about the lessons you have learned about ingesting data for data pipelines
 - make sure to include all relevant data in the raw input as that will be the starting point for all our subsequent queries
 - idempotency: rerunning the same job should yield the same result
 - reproducability: read/write the raw data (example: json files using data coming from the API). Only afterwards transform this to a structure we need...
+- how do you handle timezones in your solution?
 
 ### Steps for development
 
 1. Start by experimenting with the API and getting the results you want locally. This ensures a fast feedback cycle. Write the raw data as json to 1 or more files.
 2. If you are confident in your solution, you may test the integration with AWS. For this you would need to make the following changes:
-- get AWS credentials using the boto3 python client
-- write the files to your own newly created s3 bucket (prefix it with your first name). You can create the s3 bucket through the AWS console if you want
-3. create a aws batch job definition that allows you to run your job using AWS batch. Use the following AWS role: <TODO>. Try wether you can get this working using Terraform
+- configure your aws_profile to connect to the correct aws_account and use the correct credentials. You can then use AWS_PROFILE=... before executing your python code
+- write the files to your own path on the s3 bucket (integrated-exercise-resources). Prefix the path on the s3 bucket with your first name like: niels-data/...
+3. create a aws batch job definition that allows you to run your job using AWS batch. Use the following AWS role: <TODO>. Try wether you can get this working using Terraform. You will need to create an ecr repository for your docker image that will be used in AWS batch
 4. create the Airflow dag for ingesting the data every day at midnight. For this I have setup MWAA in the AWS account, which you will all share together. Make sure you prefix your dag with your firstname. Use the AWS console and the MWAA UI to accomplish this step
 5. (bis) You can also write integration tests with the API and or s3 using localstack
 
@@ -80,7 +81,30 @@ You can write the output as parquet to S3 as clean/aggregate_station_by_day part
 
 ### Steps for development
 1. Start from the Raw data of Task 1 and read it into a spark dataframe using pyspark. Write the output data as parquet. Start locally on your laptop as this is the quickest for iterating
+- to read from s3 with pyspark, make sure you configure the spark_session with the following config: "fs.s3a.aws.credentials.provider":"com.amazonaws.auth.DefaultAWSCredentialsProviderChain"
+The full config could look as follows:
+```
+SparkSession.builder.config(
+    "spark.jars.packages",
+    ",".join(
+        [
+            "org.apache.hadoop:hadoop-aws:3.3.1",
+        ]
+    ),
+)
+.config(
+    "fs.s3a.aws.credentials.provider",
+    "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
+)
+.getOrCreate()
+```
+- to specify the filesystem with Spark: use s3a://<bucket>/<firstname-data>/clean/<path> as filepath 
+Note: we add the extra hadoop-aws package to make sure it is downloaded before Spark starts. This is the quickest way to set it up for both the local and the remote execution environment.
+Note2: export the AWS environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN) instead of the profile to have the least chance of credentials errors with the spark/hadoop-aws packages.
 2. (bis): you can write a couple of unit tests that verifies the output of the transformation function. In this repo you can find the conftest.py (<TODO>), which contains a spark fixture that you can use in your python tests. The goal is to create a dataframe with your test data, call your aggregate function and validate whether it produces the correct average depending on the situation (e.g. different timestamps within 1 day, different parameters,...)
-3. create a aws batch job definition that allows you to run your job using AWS batch. Use the following AWS role: <TODO>. Try wether you can get this working using Terraform
+3. create a aws batch job definition that allows you to run your job using AWS batch. Use the following AWS role: <TODO>. Try wether you can get this working using Terraform. You will need to create an ecr repository for your docker image that will be used in AWS batch, it can be the same as in Task1 where you just use a different entrypoint.
 4. create the Airflow dag for ingesting the data every day at midnight. For this I have setup MWAA in the AWS account, which you will all share together. Make sure you prefix your dag with your firstname. Use the AWS console and the MWAA UI to accomplish this step
 
+Extra notes:
+If you get some weird error while running Spark with s3a, like: `py4j.protocol.Py4JJavaError: An error occurred while calling o42.json.`
+Make sure all hadoop jars have the same version as is specified in the hadoop-aws config (3.3.1 normally). This can be found under venv_root/lib/python3.10/site-packages/pyspark/jars/hadoop-*.jar

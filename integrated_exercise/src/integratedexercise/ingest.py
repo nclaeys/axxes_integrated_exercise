@@ -1,7 +1,7 @@
 import argparse
 import json
 import logging
-import pathlib
+import boto3
 import urllib
 import sys
 
@@ -20,51 +20,37 @@ def main():
         "-e", "--env", dest="env", help="environment we are executing in", required=True
     )
     parser.add_argument(
-        "-p", "--path", dest="path", help="Root path to read or write data from", required=True
+        "-p", "--path", dest="path", help="Bucket path to read or write data from", required=True
     )
     args = parser.parse_args()
     logging.info(f"Using args: {args}")
-
-    run(args.env, args.date, args.path)
-
-
-def run(env: str, date: str, root_path: str):
-    """Main ETL script definition.
-
-    :return: None
-    """
-    # execute ETL pipeline
-    data = process_raw_data(root_path, date)
-    logging.info("Downloaded the weather info, now loading it")
-    if data is None:
-        logging.error("Received no weather data")
+    process_raw_data(args.path, args.date)
 
 
-def write_timeseries_today(date: str, timeserie_id: str, station_id: str, root_path: str, measurement: Measurement):
-    request_timeseries = "https://geo.irceline.be/sos/api/v1/timeseries/{}/getData?PT24H/{}".format(
-        timeserie_id, date)
+def write_timeseries_for(date: str, series_id: str, station_id: str, s3_bucket: str, measurement: Measurement):
+    request_timeseries = f"https://geo.irceline.be/sos/api/v1/timeseries/{series_id}/getData?timespan=PT24H/{date}T00:00:00Z"
 
     response = requests.get(request_timeseries)
     if response.status_code == 200:
-        file_path = pathlib.Path(root_path) / 'raw' / date
-        file_path.mkdir(parents=True, exist_ok=True)
-        json_file = file_path / f"{str(station_id)}-{timeserie_id}.json"
         values_json = response.json()['values']
         measurement.set_measurements(values_json)
-        json_file.write_bytes(json.dumps(measurement.to_json()).encode('utf-8'))
+        s3 = boto3.resource('s3')
+        s3.Object(f"{s3_bucket}", f'niels-data/raw/{date}/{str(station_id)}-{series_id}.json').put(
+            Body=json.dumps(measurement.to_json()).encode('utf-8'))
     else:
         raise response.raise_for_status()
 
 
-def process_raw_data(root_path: str, date: str) -> Optional[str]:
+def process_raw_data(s3_bucket: str, date: str) -> Optional[str]:
     """
     Gets the data from the open weather map api and returns the result.
     :return: The weather data
     """
     interested_parameter_ids = [5, 6001, 8, 71, 1]
     interested_parameter = {5: 'ppm10', 6001: 'ppm25', 8: 'N02', 71: 'CO2', 1: 'S02'}
-     # Stations around antwerp: coordinates: 4.40346, 51.21989
+    # Stations around antwerp: coordinates: 4.40346, 51.21989
     antwerp_stations = '{"center":{"type":"Point","coordinates":[4.40346, 51.21989]},"radius":10}'
+
     url_encoded_stations = urllib.parse.quote_plus(antwerp_stations)
     request_url = "https://geo.irceline.be/sos/api/v1/stations/?expanded=true&near={}".format(url_encoded_stations)
     result = requests.get(request_url)
@@ -81,8 +67,8 @@ def process_raw_data(root_path: str, date: str) -> Optional[str]:
             if parameter_id in interested_parameter_ids:
                 measurement = Measurement(longitude=long_coord, latitude=lat_coord, station_id=station_id,
                                           station_name=station_name, series_id=tKey, parameter_id=tKey,
-                                          parameter_name=interested_parameter[parameter_id], city='Antwerp')
-                write_timeseries_today(date, tKey, station_id, root_path, measurement)
+                                          parameter_name=interested_parameter[parameter_id], city_name='Antwerp')
+                write_timeseries_for(date, tKey, station_id, s3_bucket, measurement)
 
 
 if __name__ == "__main__":

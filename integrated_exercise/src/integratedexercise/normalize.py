@@ -2,16 +2,16 @@ import argparse
 import logging
 import sys
 
-from pyspark.sql.functions import date_format, col, avg, to_timestamp
+from pyspark.sql.functions import date_format, col, avg, to_utc_timestamp, lit
 from pyspark.sql import SparkSession, DataFrame
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARN)
 
 
 def main():
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
     parser = argparse.ArgumentParser(description="integrated_exercise")
     parser.add_argument(
         "-d", "--date", dest="date", help="date in format YYYY-mm-dd", required=True
@@ -30,7 +30,7 @@ def main():
 
 def read_raw_data(date: str, root_path: str) -> DataFrame:
     spark = get_spark_session('normalize')
-    json_files = f'{root_path}/raw/{date}/*.json'
+    json_files = f"s3a://{root_path}/niels-data/raw/{date}/*.json"
     spark.sparkContext.setLogLevel("DEBUG")
 
     df = spark.read.option('multiline', 'true').json(json_files)
@@ -43,13 +43,17 @@ def get_spark_session(name: str = None) -> SparkSession:
             "spark.jars.packages",
             ",".join(
                 [
-                    "org.apache.hadoop:hadoop-aws:3.3.6",
+                    "org.apache.hadoop:hadoop-aws:3.3.1",
                 ]
             ),
         )
         .config(
             "fs.s3a.aws.credentials.provider",
             "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
+        ).config(
+            "fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"
+        ).config(
+            "spark.sql.session.timeZone", "UTC"
         )
         .appName(name)
         .getOrCreate()
@@ -57,7 +61,7 @@ def get_spark_session(name: str = None) -> SparkSession:
 
 
 def aggregate_station_by_day(df) -> DataFrame:
-    df_with_datetime = df.withColumn(f'datetime', to_timestamp((col('timestamp') / 1000).cast("timestamp")))
+    df_with_datetime = df.withColumn(f'datetime', to_utc_timestamp((col('timestamp') / 1000).cast("timestamp"), 'Z'))
     df_with_day = df_with_datetime.withColumn(f'day', date_format('datetime', 'yyyy-MM-dd'))
 
     grouping_keys = ('station_id', 'latitude', 'longitude', 'parameter_name', 'day')
@@ -66,10 +70,10 @@ def aggregate_station_by_day(df) -> DataFrame:
 
 
 def aggregate_city_by_hour(df) -> DataFrame:
-    df_with_datetime = df.withColumn(f'datetime', to_timestamp((col('timestamp') / 1000).cast("timestamp")))
+    df_with_datetime = df.withColumn(f'datetime', to_utc_timestamp((col('timestamp') / 1000).cast("timestamp"), 'Z'))
     df_with_day = df_with_datetime.withColumn(f'day', date_format('datetime', 'yyyy-MM-dd'))
 
-    grouping_keys = ('city', 'parameter_name', 'day', 'datetime')
+    grouping_keys = ('city_name', 'parameter_name', 'day', 'datetime')
     aggregated_df = df_with_day.groupby(*grouping_keys).agg(avg(col('value')).alias('average'))
     return aggregated_df
 
@@ -86,12 +90,12 @@ def run(env: str, date: str, root_path: str):
     logger.info(f"{aggregate_by_station.count()} entries for aggregates by station...")
     logger.info("Writing parquet data for station aggregate by day...")
     aggregate_by_station.write.partitionBy('day').mode('overwrite').parquet(
-        f'{root_path}/clean/aggregate_station_by_day/')
+        f's3a://{root_path}/niels-data/clean/aggregate_station_by_day/')
     aggregate_by_city = aggregate_city_by_hour(df)
     logger.info(f"{aggregate_by_city.count()} entries for aggregates by city...")
     logger.info("Writing parquet data for city aggregate by hour...")
     aggregate_by_city.write.partitionBy('day').mode('overwrite').parquet(
-        f'{root_path}/clean/aggregate_city_by_hour/')
+        f's3a://{root_path}/niels-data/clean/aggregate_city_by_hour/')
 
 
 if __name__ == "__main__":
