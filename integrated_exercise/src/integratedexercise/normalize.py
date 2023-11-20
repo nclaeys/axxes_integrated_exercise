@@ -86,12 +86,12 @@ def run(env: str, date: str, root_path: str):
     logger.info(f"{aggregate_by_station.count()} entries for aggregates by station...")
     logger.info("Writing parquet data for station aggregate by day...")
     aggregate_by_station.write.partitionBy('day').mode('overwrite').parquet(
-        f'{root_path}/aggregate_station_by_day/')
+        f'{root_path}/clean/aggregate_station_by_day/')
     aggregate_by_city = aggregate_city_by_hour(df)
     logger.info(f"{aggregate_by_city.count()} entries for aggregates by city...")
     logger.info("Writing parquet data for city aggregate by hour...")
     aggregate_by_city.write.partitionBy('day').mode('overwrite').parquet(
-        f'{root_path}/aggregate_city_by_hour/')
+        f'{root_path}/clean/aggregate_city_by_hour/')
 
 
 if __name__ == "__main__":
