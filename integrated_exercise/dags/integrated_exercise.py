@@ -11,13 +11,26 @@ dag = DAG(
     catchup=False,
 )
 
-BatchOperator(
+ingest = BatchOperator(
     dag=dag,
     task_id="raw_ingest",
-    job_definition="niels-integrated-exercise",
-    job_queue="niels-integrated-exercise-job-queue",
+    job_definition="niels-integrated-exercise-ingest",
+    job_queue="integrated-exercise-job-queue",
     job_name="niels_raw_ingest",
-    overrides={
+    parameters={
         "executionDate": "{{ ds }}"
     }
 )
+
+clean = BatchOperator(
+    dag=dag,
+    task_id="normalize_ingest",
+    job_definition="niels-integrated-exercise-normalize",
+    job_queue="integrated-exercise-job-queue",
+    job_name="niels_normalize_ingest",
+    parameters={
+        "executionDate": "{{ ds }}"
+    }
+)
+
+ingest >> clean

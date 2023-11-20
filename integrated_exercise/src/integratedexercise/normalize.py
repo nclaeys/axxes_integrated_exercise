@@ -89,12 +89,12 @@ def run(env: str, date: str, root_path: str):
     aggregate_by_station = aggregate_station_by_day(df)
     logger.info(f"{aggregate_by_station.count()} entries for aggregates by station...")
     logger.info("Writing parquet data for station aggregate by day...")
-    aggregate_by_station.write.partitionBy('day').mode('overwrite').parquet(
+    aggregate_by_station.write.partitionBy('day').mode('append').parquet(
         f's3a://{root_path}/niels-data/clean/aggregate_station_by_day/')
     aggregate_by_city = aggregate_city_by_hour(df)
     logger.info(f"{aggregate_by_city.count()} entries for aggregates by city...")
     logger.info("Writing parquet data for city aggregate by hour...")
-    aggregate_by_city.write.partitionBy('day').mode('overwrite').parquet(
+    aggregate_by_city.write.partitionBy('day').mode('append').parquet(
         f's3a://{root_path}/niels-data/clean/aggregate_city_by_hour/')
 
 
