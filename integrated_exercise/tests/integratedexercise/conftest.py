@@ -1,8 +1,6 @@
 import pytest
 from pyspark import SparkConf
 from pyspark.sql import SparkSession
-
-
 @pytest.fixture(scope="session")
 def spark(request):
     """Fixture for creating a SparkSession."""

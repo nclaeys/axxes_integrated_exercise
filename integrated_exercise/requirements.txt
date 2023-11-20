@@ -20,9 +20,9 @@ jmespath==1.0.1
     # via
     #   boto3
     #   botocore
-py4j==0.10.9.5
+py4j==0.10.9.3
     # via pyspark
-pyspark==3.2.4
+pyspark==3.2.1
     # via -r requirements.in
 python-dateutil==2.8.2
     # via botocore

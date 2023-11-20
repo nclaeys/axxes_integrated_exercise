@@ -57,7 +57,6 @@ Think about the lessons you have learned about ingesting data for data pipelines
 - make sure to include all relevant data in the raw input as that will be the starting point for all our subsequent queries
 - idempotency: rerunning the same job should yield the same result
 - reproducability: read/write the raw data (example: json files using data coming from the API). Only afterwards transform this to a structure we need...
-- how do you handle timezones in your solution?
 
 ### Steps for development
 
@@ -65,9 +64,15 @@ Think about the lessons you have learned about ingesting data for data pipelines
 2. If you are confident in your solution, you may test the integration with AWS. For this you would need to make the following changes:
 - configure your aws_profile to connect to the correct aws_account and use the correct credentials. You can then use AWS_PROFILE=... before executing your python code
 - write the files to your own path on the s3 bucket (integrated-exercise-resources). Prefix the path on the s3 bucket with your first name like: niels-data/...
-3. create a aws batch job definition that allows you to run your job using AWS batch. Use the following AWS role: <TODO>. Try wether you can get this working using Terraform. You will need to create an ecr repository for your docker image that will be used in AWS batch
+3. create a aws batch job definition that allows you to run your job using AWS batch. Use the AWS role with name: integrated-exercise-batch-job-role. 
+- Try wether you can get this working using Terraform: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/batch_job_definition
+- You will need to create an ecr repository for the docker image that will be used in AWS batch. In order to push images, make sure you are logged into the private ecr repository:
+`aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.eu-west-1.amazonaws.com`
+- you can use any python base image to start from
+- trigger a job from the AWS batch definition using the AWS console UI 
 4. create the Airflow dag for ingesting the data every day at midnight. For this I have setup MWAA in the AWS account, which you will all share together. Make sure you prefix your dag with your firstname. Use the AWS console and the MWAA UI to accomplish this step
-5. (bis) You can also write integration tests with the API and or s3 using localstack
+5. (bis) make sure you handle timezones correctly
+6. (bis) You can also write integration tests with the API and or s3 using localstack
 
 Note: 1 is required before moving along to the next task. 2-3-4 can be done at a later time if you want to combine it with Task 2 or you did not have the respective training session.
 
@@ -101,10 +106,28 @@ SparkSession.builder.config(
 - to specify the filesystem with Spark: use s3a://<bucket>/<firstname-data>/clean/<path> as filepath 
 Note: we add the extra hadoop-aws package to make sure it is downloaded before Spark starts. This is the quickest way to set it up for both the local and the remote execution environment.
 Note2: export the AWS environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN) instead of the profile to have the least chance of credentials errors with the spark/hadoop-aws packages.
-2. (bis): you can write a couple of unit tests that verifies the output of the transformation function. In this repo you can find the conftest.py (<TODO>), which contains a spark fixture that you can use in your python tests. The goal is to create a dataframe with your test data, call your aggregate function and validate whether it produces the correct average depending on the situation (e.g. different timestamps within 1 day, different parameters,...)
-3. create a aws batch job definition that allows you to run your job using AWS batch. Use the following AWS role: <TODO>. Try wether you can get this working using Terraform. You will need to create an ecr repository for your docker image that will be used in AWS batch, it can be the same as in Task1 where you just use a different entrypoint.
+2. (bis): you can write a couple of unit tests that verifies the output of the transformation function. To make it simple, you can add the following code in a test class:
+```
+import pytest
+from pyspark import SparkConf
+from pyspark.sql import SparkSession
+@pytest.fixture(scope="session")
+def spark(request):
+    """Fixture for creating a SparkSession."""
+    conf = {}
+    conf = SparkConf().setAll(pairs=conf.items())
+    builder = SparkSession.builder.master("local[*]").config(conf=conf)
+    session = builder.getOrCreate()
+    request.addfinalizer(session.stop)
+
+    return session
+```
+ which contains a fixture for running your Spark job locally. The goal is to create a dataframe with your test data, call your aggregate function and validate whether it produces the correct average depending on the situation (e.g. different timestamps within 1 day, different parameters,...)
+3. create a aws batch job definition that allows you to run your job using AWS batch. Use the AWS role with name integrated-exercise-batch-job-role. 
+- Try wether you can get this working using Terraform. You will need to create an ecr repository for your docker image that will be used in AWS batch, it can be the same as in Task1 where you just use a different entrypoint.
+- You will need to start from an image that has python, java and spark installed. I would suggest apache/spark-py:v3.2.4
 4. create the Airflow dag for ingesting the data every day at midnight. For this I have setup MWAA in the AWS account, which you will all share together. Make sure you prefix your dag with your firstname. Use the AWS console and the MWAA UI to accomplish this step
 
-Extra notes:
-If you get some weird error while running Spark with s3a, like: `py4j.protocol.Py4JJavaError: An error occurred while calling o42.json.`
+Troubleshooting typical issues:
+- If you get some weird error while running Spark with s3a, like: `py4j.protocol.Py4JJavaError: An error occurred while calling o42.json.`
 Make sure all hadoop jars have the same version as is specified in the hadoop-aws config (3.3.1 normally). This can be found under venv_root/lib/python3.10/site-packages/pyspark/jars/hadoop-*.jar
