@@ -125,8 +125,23 @@ def spark(request):
  which contains a fixture for running your Spark job locally. The goal is to create a dataframe with your test data, call your aggregate function and validate whether it produces the correct average depending on the situation (e.g. different timestamps within 1 day, different parameters,...)
 3. create a aws batch job definition that allows you to run your job using AWS batch. Use the AWS role with name integrated-exercise-batch-job-role. 
 - Try wether you can get this working using Terraform. You will need to create an ecr repository for your docker image that will be used in AWS batch, it can be the same as in Task1 where you just use a different entrypoint.
-- You will need to start from an image that has python, java and spark installed. I would suggest apache/spark-py:v3.2.4
+- Use a similar Dockerfile as a starting point:
+```
+FROM public.ecr.aws/dataminded/spark-k8s-glue:v3.2.1-hadoop-3.3.1
+
+ENV PYSPARK_PYTHON python3
+WORKDIR /opt/spark/work-dir
+
+USER 0
+
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt --no-cache-dir
+COPY . .
+
+RUN pip install --no-cache-dir -e .
+```
 4. create the Airflow dag for ingesting the data every day at midnight. For this I have setup MWAA in the AWS account, which you will all share together. Make sure you prefix your dag with your firstname. Use the AWS console and the MWAA UI to accomplish this step
+- upload file: `aws s3 cp raw_customers.csv s3://datafy-demo-data/coffee-data/raw/raw_customers.csv`
 
 Troubleshooting typical issues:
 - If you get some weird error while running Spark with s3a, like: `py4j.protocol.Py4JJavaError: An error occurred while calling o42.json.`
