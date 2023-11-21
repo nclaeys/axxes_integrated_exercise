@@ -1,0 +1,6 @@
+group: integrated-exercise
+s3_access:
+  bucket: integrated-exercise-resources
+  dags_folder: dags
+secret_access:
+  secret: snowflake/integrated-exercise/login
