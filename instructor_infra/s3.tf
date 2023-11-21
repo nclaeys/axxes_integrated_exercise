@@ -1,9 +1,9 @@
 resource "aws_s3_bucket" "integrated-exercise" {
-  bucket = "integrated-exercise-resources"
+  bucket = "data-track-integrated-exercise"
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "s3_encryption" {
-  bucket = "integrated-exercise-resources"
+  bucket = "data-track-integrated-exercise"
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
