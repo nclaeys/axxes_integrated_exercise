@@ -163,6 +163,19 @@ RUN pip install --no-cache-dir -e .
      - upload your dag code using the cli: `aws s3 cp dags/integrated_exercise.py s3://integrated-exercise-resources/dags/integrated_exercise.py`
      - Use the AWS console and the MWAA UI to trigger your dag and test whether it works
 
+## Task 3: create a basic dashboard
+The goal here is to use the previously calculated hourly numbers to visualize:
+- The 10 most polluted cities for last day using pm10 parameter
+- (bis) plot the 10 most polluted cities on a map of Belgium (not possible in snowsight but you can use streamlit/plotly locally)
+- (bis2) show the number of stations per city
+
+### Development steps
+1. create an egress spark jobs that read your previous cleaned data and pushes the relevant results to snowflake table. Use your own schema used in the dbt session
+2. visualize the result in your snowflake worksheet (mimics your dashboarding tool)
+3. (bis) for the visualization on a map: use the coordinates of a city on a map
+4. (bis2) use the previous data/extend it to visualize the number of stations that exist for a given city (maybe [geopy](https://pypi.org/project/geopy/) can help you?)
+
+
 ### Troubleshooting issues
 - If you get some weird error while running Spark with s3a, like: `py4j.protocol.Py4JJavaError: An error occurred while calling o42.json.`
 Make sure all hadoop jars have the same version as is specified in the hadoop-aws config (3.3.1 normally). This can be found under `venv_root/lib/python3.10/site-packages/pyspark/jars/hadoop-*.jar`
