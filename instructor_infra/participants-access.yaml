@@ -3,4 +3,4 @@ s3_access:
   bucket: data-track-integrated-exercise
   dags_folder: dags
 secret_access:
-  secret: snowflake/integrated-exercise/login
+  secret: snowflake/integrated-exercise/

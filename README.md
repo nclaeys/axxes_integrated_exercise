@@ -165,12 +165,12 @@ RUN pip install --no-cache-dir -e .
 
 ## Task 3: create a basic dashboard
 The goal here is to use the previously calculated hourly numbers to visualize:
-- The 10 most polluted cities for last day using pm10 parameter
+- The 5 most polluted cities for last day using pm10 parameter
 - (bis) plot the 10 most polluted cities on a map of Belgium (not possible in snowsight but you can use streamlit/plotly locally)
 - (bis2) show the number of stations per city
 
 ### Development steps
-1. create an egress spark jobs that read your previous cleaned data and pushes the relevant results to snowflake table. Use your own schema used in the dbt session
+1. create an egress spark jobs that read your previous cleaned data and pushes the relevant results to snowflake table. Use your own schema used in the dbt session.
 2. visualize the result in your snowflake worksheet (mimics your dashboarding tool)
 3. (bis) for the visualization on a map: use the coordinates of a city on a map
 4. (bis2) use the previous data/extend it to visualize the number of stations that exist for a given city (maybe [geopy](https://pypi.org/project/geopy/) can help you?)
